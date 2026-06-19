@@ -75,10 +75,23 @@ async function initDb() {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS subtasks (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      text TEXT NOT NULL,
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'done')),
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+    )
+  `);
+
   db.run(`CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_projects_share_token ON projects(share_token)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_files_project_id ON files(project_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_subtasks_task_id ON subtasks(task_id)`);
 
   // Create default admin users if they don't exist
   const userCount = db.exec("SELECT COUNT(*) as c FROM users")[0].values[0][0];

@@ -256,6 +256,58 @@ app.delete('/api/tasks/:id', (req, res) => {
   res.json({ message: 'Tarea eliminada' });
 });
 
+// ==================== SUBTASKS API ====================
+
+// Get subtasks for a task
+app.get('/api/tasks/:taskId/subtasks', requireAuth, (req, res) => {
+  const subtasks = all('SELECT * FROM subtasks WHERE task_id = ? ORDER BY sort_order, created_at', [req.params.taskId]);
+  res.json(subtasks);
+});
+
+// Add subtask
+app.post('/api/tasks/:taskId/subtasks', requireAuth, (req, res) => {
+  const { text } = req.body;
+  if (!text || !text.trim()) return res.status(400).json({ error: 'Texto requerido' });
+
+  const task = get('SELECT id FROM tasks WHERE id = ?', [req.params.taskId]);
+  if (!task) return res.status(404).json({ error: 'Tarea no encontrada' });
+
+  const id = uuidv4();
+  const maxOrder = get('SELECT MAX(sort_order) as m FROM subtasks WHERE task_id = ?', [req.params.taskId]);
+  const order = (maxOrder && maxOrder.m !== null) ? maxOrder.m + 1 : 0;
+
+  run('INSERT INTO subtasks (id, task_id, text, status, sort_order) VALUES (?, ?, ?, ?, ?)',
+    [id, req.params.taskId, text.trim(), 'pending', order]);
+
+  const subtask = get('SELECT * FROM subtasks WHERE id = ?', [id]);
+  res.status(201).json(subtask);
+});
+
+// Update subtask status
+app.put('/api/subtasks/:id', requireAuth, (req, res) => {
+  const { status, text } = req.body;
+  const existing = get('SELECT * FROM subtasks WHERE id = ?', [req.params.id]);
+  if (!existing) return res.status(404).json({ error: 'Subtarea no encontrada' });
+
+  if (status) {
+    run('UPDATE subtasks SET status = ? WHERE id = ?', [status, req.params.id]);
+  }
+  if (text !== undefined) {
+    run('UPDATE subtasks SET text = ? WHERE id = ?', [text.trim(), req.params.id]);
+  }
+
+  const subtask = get('SELECT * FROM subtasks WHERE id = ?', [req.params.id]);
+  res.json(subtask);
+});
+
+// Delete subtask
+app.delete('/api/subtasks/:id', requireAuth, (req, res) => {
+  const subtask = get('SELECT id FROM subtasks WHERE id = ?', [req.params.id]);
+  if (!subtask) return res.status(404).json({ error: 'Subtarea no encontrada' });
+  run('DELETE FROM subtasks WHERE id = ?', [req.params.id]);
+  res.json({ message: 'Subtarea eliminada' });
+});
+
 // ==================== FILES API ====================
 
 // Get files for a project (metadata only)
@@ -319,6 +371,11 @@ app.get('/api/shared/:token', (req, res) => {
   const tasks = all(`SELECT * FROM tasks WHERE project_id = ?
     ORDER BY CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 WHEN 'low' THEN 4 END, created_at DESC`,
     [project.id]);
+
+  // Add subtasks to each task
+  tasks.forEach(t => {
+    t.subtasks = all('SELECT * FROM subtasks WHERE task_id = ? ORDER BY sort_order, created_at', [t.id]);
+  });
 
   const files = all('SELECT id, filename, mimetype, size, uploaded_at FROM files WHERE project_id = ? ORDER BY uploaded_at DESC', [project.id]);
 

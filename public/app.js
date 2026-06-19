@@ -294,7 +294,7 @@ async function loadTasks() {
 
     $('no-tasks').classList.add('hidden');
     $('tasks-list').innerHTML = tasks.map(t => `
-      <div class="task-card card status-${t.status}">
+      <div class="task-card card status-${t.status}" id="task-${t.id}">
         <div class="task-header">
           <div class="task-title-row">
             <span class="priority-dot priority-${t.priority}" title="${priorityLabel(t.priority)}"></span>
@@ -305,7 +305,6 @@ async function loadTasks() {
             <button class="btn-icon" onclick="deleteTask('${t.id}')" title="Eliminar">&#128465;</button>
           </div>
         </div>
-        ${t.description ? `<p class="task-desc">${escapeHtml(t.description)}</p>` : ''}
         <div class="task-meta">
           <span class="badge status-badge-${t.status}">${statusLabel(t.status)}</span>
           <span class="badge priority-badge-${t.priority}">${priorityLabel(t.priority)}</span>
@@ -313,8 +312,18 @@ async function loadTasks() {
           ${t.due_date ? `<span class="task-due">&#128197; ${formatDate(t.due_date)}</span>` : ''}
         </div>
         ${t.notes ? `<p class="task-notes">&#128221; ${escapeHtml(t.notes)}</p>` : ''}
+        <div class="subtasks-section">
+          <div class="subtasks-list" id="subtasks-list-${t.id}"></div>
+          <div class="add-subtask-row">
+            <input type="text" id="new-subtask-${t.id}" placeholder="Agregar paso..." onkeydown="if(event.key==='Enter')addSubtask('${t.id}')">
+            <button class="btn-icon add-subtask-btn" onclick="addSubtask('${t.id}')" title="Agregar">+</button>
+          </div>
+        </div>
       </div>
     `).join('');
+
+    // Load subtasks for each task
+    tasks.forEach(t => loadSubtasks(t.id));
   } catch (err) {
     showToast('Error al cargar tareas', 'error');
   }
@@ -324,7 +333,6 @@ function showCreateTask() {
   $('task-form-title').textContent = 'Nueva Tarea';
   $('task-id').value = '';
   $('task-title').value = '';
-  $('task-description').value = '';
   $('task-status').value = 'pending';
   $('task-priority').value = 'medium';
   $('task-assigned').value = '';
@@ -348,7 +356,6 @@ async function editTask(taskId) {
     $('task-form-title').textContent = 'Editar Tarea';
     $('task-id').value = task.id;
     $('task-title').value = task.title;
-    $('task-description').value = task.description || '';
     $('task-status').value = task.status;
     $('task-priority').value = task.priority;
     $('task-assigned').value = task.assigned_to || '';
@@ -366,7 +373,7 @@ async function saveTask(e) {
   const taskId = $('task-id').value;
   const data = {
     title: $('task-title').value.trim(),
-    description: $('task-description').value.trim(),
+    description: '',
     status: $('task-status').value,
     priority: $('task-priority').value,
     assigned_to: $('task-assigned').value.trim(),
@@ -414,6 +421,85 @@ async function deleteTask(taskId) {
   } catch (err) {
     showToast('Error al eliminar tarea', 'error');
   }
+}
+
+// ==================== SUBTASKS ====================
+async function loadSubtasks(taskId) {
+  try {
+    const res = await fetch(`/api/tasks/${taskId}/subtasks`);
+    const subtasks = await res.json();
+    const container = $(`subtasks-list-${taskId}`);
+    if (!container) return;
+
+    if (subtasks.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    container.innerHTML = subtasks.map(s => `
+      <div class="subtask-item">
+        <div class="subtask-left">
+          <span class="semaphore semaphore-${s.status}" onclick="cycleSubtaskStatus('${s.id}', '${s.status}')" title="${subtaskStatusLabel(s.status)}"></span>
+          <span class="subtask-text ${s.status === 'done' ? 'subtask-done' : ''}">${escapeHtml(s.text)}</span>
+        </div>
+        <button class="btn-icon subtask-delete" onclick="deleteSubtask('${s.id}', '${taskId}')" title="Eliminar">&times;</button>
+      </div>
+    `).join('');
+  } catch (err) {
+    console.error('Error loading subtasks:', err);
+  }
+}
+
+async function addSubtask(taskId) {
+  const input = $(`new-subtask-${taskId}`);
+  const text = input.value.trim();
+  if (!text) return;
+
+  try {
+    const res = await fetch(`/api/tasks/${taskId}/subtasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    if (!res.ok) throw new Error('Error');
+    input.value = '';
+    loadSubtasks(taskId);
+  } catch (err) {
+    showToast('Error al agregar paso', 'error');
+  }
+}
+
+async function cycleSubtaskStatus(subtaskId, currentStatus) {
+  // Cycle: pending → in_progress → done → pending
+  const next = { pending: 'in_progress', in_progress: 'done', done: 'pending' };
+  const newStatus = next[currentStatus] || 'pending';
+
+  try {
+    await fetch(`/api/subtasks/${subtaskId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus })
+    });
+    // Find which task this belongs to and reload
+    const taskCard = document.querySelector(`[id^="subtasks-list-"]`)?.closest('.task-card');
+    // Reload all subtasks (simpler approach)
+    loadTasks();
+  } catch (err) {
+    showToast('Error al actualizar', 'error');
+  }
+}
+
+async function deleteSubtask(subtaskId, taskId) {
+  try {
+    await fetch(`/api/subtasks/${subtaskId}`, { method: 'DELETE' });
+    loadSubtasks(taskId);
+  } catch (err) {
+    showToast('Error al eliminar', 'error');
+  }
+}
+
+function subtaskStatusLabel(status) {
+  return { pending: 'Pendiente - clic para cambiar', in_progress: 'En progreso - clic para cambiar', done: 'Completado - clic para cambiar' }[status] || status;
 }
 
 // ==================== CHARTS ====================

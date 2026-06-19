@@ -503,6 +503,125 @@ body {
   font-family: monospace;
 }
 
+/* ==================== SUBTASKS ==================== */
+.subtasks-section {
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid #f0f0f0;
+}
+
+.subtasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.subtask-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.subtask-item:hover {
+  background: #f8f8f8;
+}
+
+.subtask-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+}
+
+.semaphore {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s, box-shadow 0.15s;
+  border: 2px solid transparent;
+}
+
+.semaphore:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 6px rgba(0,0,0,0.2);
+}
+
+.semaphore-pending {
+  background: #dc3545;
+  border-color: #b02a37;
+}
+
+.semaphore-in_progress {
+  background: #ffc107;
+  border-color: #d4a206;
+}
+
+.semaphore-done {
+  background: #28a745;
+  border-color: #1e7e34;
+}
+
+.subtask-text {
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.subtask-done {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.subtask-delete {
+  opacity: 0;
+  font-size: 1.1rem;
+  transition: opacity 0.15s;
+}
+
+.subtask-item:hover .subtask-delete {
+  opacity: 0.5;
+}
+
+.subtask-item:hover .subtask-delete:hover {
+  opacity: 1;
+}
+
+.add-subtask-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.add-subtask-row input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  background: #fafafa;
+}
+
+.add-subtask-row input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: #fff;
+}
+
+.add-subtask-btn {
+  font-size: 1.3rem !important;
+  font-weight: 700;
+  opacity: 0.4;
+}
+
+.add-subtask-btn:hover {
+  opacity: 1 !important;
+}
+
 /* ==================== CHARTS ==================== */
 .charts-section {
   margin-bottom: 1.5rem;
