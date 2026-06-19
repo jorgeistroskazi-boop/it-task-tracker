@@ -1,4 +1,5 @@
 const express = require('express');
+const session = require('express-session');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { initDb, getDb, persist } = require('./database');
@@ -8,7 +9,17 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json({ limit: '15mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(session({
+  secret: 'adama-it-tracker-2026-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+}));
+
+// Static files (login page accessible without auth)
+app.use('/login.html', express.static(path.join(__dirname, 'public', 'login.html')));
+app.use('/styles.css', express.static(path.join(__dirname, 'public', 'styles.css')));
+app.use('/adama-logo.svg', express.static(path.join(__dirname, 'public', 'adama-logo.svg')));
 
 // Helper: run query and return all rows as objects
 function all(sql, params = []) {
@@ -33,6 +44,93 @@ function run(sql, params = []) {
   db.run(sql, params);
   persist();
 }
+
+// ==================== AUTH API ====================
+
+// Login
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
+
+  const user = get('SELECT id, username, full_name, role FROM users WHERE username = ? AND password = ?', [username, password]);
+  if (!user) return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+
+  req.session.userId = user.id;
+  req.session.username = user.username;
+  req.session.fullName = user.full_name;
+  req.session.role = user.role;
+  res.json({ user: { id: user.id, username: user.username, full_name: user.full_name, role: user.role } });
+});
+
+// Logout
+app.post('/api/logout', (req, res) => {
+  req.session.destroy();
+  res.json({ message: 'Sesión cerrada' });
+});
+
+// Get current user
+app.get('/api/me', (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: 'No autenticado' });
+  res.json({ id: req.session.userId, username: req.session.username, full_name: req.session.fullName, role: req.session.role });
+});
+
+// Auth middleware - protect all API routes below (except shared)
+function requireAuth(req, res, next) {
+  if (req.session.userId) return next();
+  res.status(401).json({ error: 'No autenticado' });
+}
+
+// Protect static files (except login page and shared views)
+app.use((req, res, next) => {
+  // Allow shared views without auth
+  if (req.path.startsWith('/shared/') || req.path.startsWith('/api/shared/')) return next();
+  // Allow login-related paths
+  if (req.path === '/login.html' || req.path === '/styles.css' || req.path === '/adama-logo.svg') return next();
+  if (req.path.startsWith('/api/login') || req.path.startsWith('/api/logout')) return next();
+  // Check auth for everything else
+  if (!req.session.userId) {
+    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'No autenticado' });
+    return res.redirect('/login.html');
+  }
+  next();
+});
+
+// Serve static files for authenticated users
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ==================== USERS API (admin only) ====================
+
+app.get('/api/users', requireAuth, (req, res) => {
+  if (req.session.role !== 'admin') return res.status(403).json({ error: 'Sin permisos' });
+  const users = all('SELECT id, username, full_name, role, created_at FROM users ORDER BY created_at');
+  res.json(users);
+});
+
+app.post('/api/users', requireAuth, (req, res) => {
+  if (req.session.role !== 'admin') return res.status(403).json({ error: 'Sin permisos' });
+  const { username, password, full_name } = req.body;
+  if (!username || !password || !full_name) return res.status(400).json({ error: 'Todos los campos son requeridos' });
+
+  const existing = get('SELECT id FROM users WHERE username = ?', [username]);
+  if (existing) return res.status(400).json({ error: 'El usuario ya existe' });
+
+  const id = uuidv4();
+  run('INSERT INTO users (id, username, password, full_name, role) VALUES (?, ?, ?, ?, ?)',
+    [id, username, password, full_name, 'admin']);
+
+  res.status(201).json({ id, username, full_name, role: 'admin' });
+});
+
+app.delete('/api/users/:id', requireAuth, (req, res) => {
+  if (req.session.role !== 'admin') return res.status(403).json({ error: 'Sin permisos' });
+  if (req.params.id === req.session.userId) return res.status(400).json({ error: 'No puedes eliminarte a ti mismo' });
+
+  const user = get('SELECT id FROM users WHERE id = ?', [req.params.id]);
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+  run('DELETE FROM users WHERE id = ?', [req.params.id]);
+  res.json({ message: 'Usuario eliminado' });
+});
 
 // ==================== PROJECTS API ====================
 

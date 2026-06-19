@@ -1,5 +1,88 @@
 // ==================== STATE ====================
 let currentProjectId = null;
+let currentUser = null;
+
+// ==================== AUTH ====================
+async function checkAuth() {
+  try {
+    const res = await fetch('/api/me');
+    if (!res.ok) { window.location.href = '/login.html'; return false; }
+    currentUser = await res.json();
+    $('user-display').textContent = currentUser.full_name;
+    return true;
+  } catch { window.location.href = '/login.html'; return false; }
+}
+
+async function doLogout() {
+  await fetch('/api/logout', { method: 'POST' });
+  window.location.href = '/login.html';
+}
+
+// ==================== USERS ====================
+async function showUsersPanel() {
+  $('users-modal').classList.remove('hidden');
+  loadUsers();
+}
+
+function closeUsersPanel() {
+  $('users-modal').classList.add('hidden');
+}
+
+async function loadUsers() {
+  try {
+    const res = await fetch('/api/users');
+    const users = await res.json();
+    $('users-list').innerHTML = users.map(u => `
+      <div class="user-item">
+        <div class="user-item-info">
+          <span class="user-item-name">${escapeHtml(u.full_name)}</span>
+          <span class="user-item-username">@${escapeHtml(u.username)} &bull; ${u.role}</span>
+        </div>
+        ${u.id !== currentUser.id ? `<button class="btn-icon" onclick="deleteUser('${u.id}', '${escapeHtml(u.full_name)}')" title="Eliminar">&#128465;</button>` : '<span class="badge badge-total">Tú</span>'}
+      </div>
+    `).join('');
+  } catch (err) {
+    showToast('Error al cargar usuarios', 'error');
+  }
+}
+
+async function createUser(e) {
+  e.preventDefault();
+  const full_name = $('new-fullname').value.trim();
+  const username = $('new-username').value.trim();
+  const password = $('new-password').value;
+
+  if (!full_name || !username || !password) { showToast('Todos los campos son requeridos', 'error'); return; }
+
+  try {
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ full_name, username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Error', 'error'); return; }
+    showToast('Usuario creado');
+    $('new-fullname').value = '';
+    $('new-username').value = '';
+    $('new-password').value = '';
+    loadUsers();
+  } catch (err) {
+    showToast('Error al crear usuario', 'error');
+  }
+}
+
+async function deleteUser(id, name) {
+  if (!confirm(`¿Eliminar al usuario "${name}"?`)) return;
+  try {
+    const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+    if (!res.ok) { const d = await res.json(); showToast(d.error || 'Error', 'error'); return; }
+    showToast('Usuario eliminado');
+    loadUsers();
+  } catch (err) {
+    showToast('Error al eliminar usuario', 'error');
+  }
+}
 
 // ==================== UTILITIES ====================
 function $(id) { return document.getElementById(id); }
@@ -526,6 +609,7 @@ function formatFileSize(bytes) {
 }
 
 // ==================== INIT ====================
-document.addEventListener('DOMContentLoaded', () => {
-  loadProjects();
+document.addEventListener('DOMContentLoaded', async () => {
+  const authenticated = await checkAuth();
+  if (authenticated) loadProjects();
 });

@@ -64,10 +64,31 @@ async function initDb() {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      full_name TEXT NOT NULL,
+      role TEXT DEFAULT 'admin',
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
   db.run(`CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_projects_share_token ON projects(share_token)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_files_project_id ON files(project_id)`);
+
+  // Create default admin users if they don't exist
+  const userCount = db.exec("SELECT COUNT(*) as c FROM users")[0].values[0][0];
+  if (userCount === 0) {
+    const { v4: uuidv4 } = require('uuid');
+    db.run(`INSERT INTO users (id, username, password, full_name, role) VALUES (?, ?, ?, ?, ?)`,
+      [uuidv4(), 'mguerrero', 'IDT.Lan.26', 'Miguel Guerrero', 'admin']);
+    db.run(`INSERT INTO users (id, username, password, full_name, role) VALUES (?, ?, ?, ?, ?)`,
+      [uuidv4(), 'jmorales', 'IDT.Lan.26', 'Jorge Morales', 'admin']);
+  }
 
   persist();
   return db;

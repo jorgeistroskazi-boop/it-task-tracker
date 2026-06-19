@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - IT Task Tracker</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #111111; }
+    .login-container { width: 100%; max-width: 380px; padding: 1.5rem; }
+    .login-card { background: #ffffff; border-radius: 8px; padding: 2.5rem 2rem; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .login-logo { text-align: center; margin-bottom: 2rem; }
+    .login-logo img { height: 50px; margin-bottom: 0.75rem; }
+    .login-logo h2 { font-size: 1.2rem; font-weight: 600; color: #111; letter-spacing: -0.02em; }
+    .login-logo p { font-size: 0.78rem; color: #666; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.3rem; }
+    .login-form .form-group { margin-bottom: 1.2rem; }
+    .login-form .form-group label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #333; }
+    .login-form .form-group input { padding: 0.7rem 0.9rem; font-size: 0.95rem; background: #f8f8f8; border: 1px solid #e0e0e0; }
+    .login-form .form-group input:focus { background: #fff; border-color: #111; box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
+    .login-btn { width: 100%; padding: 0.75rem; background: #111; color: #fff; border: none; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .login-btn:hover { background: #333; }
+    .login-error { background: #fde8e8; color: #8b1a1a; padding: 0.6rem 0.8rem; border-radius: 4px; font-size: 0.82rem; margin-bottom: 1rem; display: none; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-logo">
+        <img src="/adama-logo.svg" alt="ADAMA">
+        <h2>IT Task Tracker</h2>
+        <p>Seguimiento de tareas IT</p>
+      </div>
+      <div id="login-error" class="login-error"></div>
+      <form class="login-form" onsubmit="doLogin(event)">
+        <div class="form-group">
+          <label for="username">Usuario</label>
+          <input type="text" id="username" placeholder="Tu usuario" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label for="password">Contraseña</label>
+          <input type="password" id="password" placeholder="Tu contraseña" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="login-btn" id="login-btn">Iniciar sesión</button>
+      </form>
+    </div>
+  </div>
+  <script>
+    async function doLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById('login-btn');
+      const errDiv = document.getElementById('login-error');
+      errDiv.style.display = 'none';
+      btn.textContent = 'Ingresando...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: document.getElementById('username').value.trim(),
+            password: document.getElementById('password').value
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errDiv.textContent = data.error || 'Error al iniciar sesión';
+          errDiv.style.display = 'block';
+          btn.textContent = 'Iniciar sesión';
+          btn.disabled = false;
+          return;
+        }
+        window.location.href = '/';
+      } catch (err) {
+        errDiv.textContent = 'Error de conexión';
+        errDiv.style.display = 'block';
+        btn.textContent = 'Iniciar sesión';
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
