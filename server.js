@@ -7,7 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Helper: run query and return all rows as objects
@@ -158,6 +158,50 @@ app.delete('/api/tasks/:id', (req, res) => {
   res.json({ message: 'Tarea eliminada' });
 });
 
+// ==================== FILES API ====================
+
+// Get files for a project (metadata only)
+app.get('/api/projects/:projectId/files', (req, res) => {
+  const files = all('SELECT id, project_id, filename, mimetype, size, uploaded_at FROM files WHERE project_id = ? ORDER BY uploaded_at DESC', [req.params.projectId]);
+  res.json(files);
+});
+
+// Upload file (base64 encoded)
+app.post('/api/projects/:projectId/files', (req, res) => {
+  const { filename, mimetype, data } = req.body;
+  if (!filename || !data) return res.status(400).json({ error: 'Archivo requerido' });
+
+  const project = get('SELECT id FROM projects WHERE id = ?', [req.params.projectId]);
+  if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' });
+
+  const id = uuidv4();
+  const size = Math.round((data.length * 3) / 4); // approx size from base64
+
+  run(`INSERT INTO files (id, project_id, filename, mimetype, size, data) VALUES (?, ?, ?, ?, ?, ?)`,
+    [id, req.params.projectId, filename, mimetype || 'application/octet-stream', size, data]);
+
+  res.status(201).json({ id, project_id: req.params.projectId, filename, mimetype, size, uploaded_at: new Date().toISOString() });
+});
+
+// Download file
+app.get('/api/files/:id/download', (req, res) => {
+  const file = get('SELECT * FROM files WHERE id = ?', [req.params.id]);
+  if (!file) return res.status(404).json({ error: 'Archivo no encontrado' });
+
+  const buffer = Buffer.from(file.data, 'base64');
+  res.setHeader('Content-Type', file.mimetype || 'application/octet-stream');
+  res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+  res.send(buffer);
+});
+
+// Delete file
+app.delete('/api/files/:id', (req, res) => {
+  const file = get('SELECT id FROM files WHERE id = ?', [req.params.id]);
+  if (!file) return res.status(404).json({ error: 'Archivo no encontrado' });
+  run('DELETE FROM files WHERE id = ?', [req.params.id]);
+  res.json({ message: 'Archivo eliminado' });
+});
+
 // ==================== SHARED VIEW ====================
 
 app.get('/api/shared/:token', (req, res) => {
@@ -178,7 +222,9 @@ app.get('/api/shared/:token', (req, res) => {
     ORDER BY CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 WHEN 'low' THEN 4 END, created_at DESC`,
     [project.id]);
 
-  res.json({ project, tasks });
+  const files = all('SELECT id, filename, mimetype, size, uploaded_at FROM files WHERE project_id = ? ORDER BY uploaded_at DESC', [project.id]);
+
+  res.json({ project, tasks, files });
 });
 
 // ==================== HTML ROUTES ====================

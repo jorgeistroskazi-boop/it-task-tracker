@@ -69,6 +69,12 @@
         <p>No hay tareas registradas en este proyecto</p>
       </div>
 
+      <!-- Files Section -->
+      <div id="shared-files-section" class="hidden" style="margin-top:2rem">
+        <h3 style="margin-bottom:1rem">&#128196; Documentos</h3>
+        <div id="shared-files-list" style="display:flex;flex-direction:column;gap:.5rem"></div>
+      </div>
+
       <!-- Footer -->
       <footer class="shared-footer">
         <p>Seguimiento con <strong>IT Task Tracker</strong> &mdash; Actualizado en tiempo real</p>
@@ -103,6 +109,24 @@
       return div.innerHTML;
     }
 
+    function getFileIconShared(mimetype) {
+      if (!mimetype) return '&#128196;';
+      if (mimetype.includes('pdf')) return '&#128213;';
+      if (mimetype.includes('image')) return '&#128247;';
+      if (mimetype.includes('word') || mimetype.includes('document')) return '&#128196;';
+      if (mimetype.includes('sheet') || mimetype.includes('excel')) return '&#128202;';
+      if (mimetype.includes('presentation') || mimetype.includes('powerpoint')) return '&#128218;';
+      if (mimetype.includes('zip') || mimetype.includes('compress')) return '&#128230;';
+      return '&#128196;';
+    }
+
+    function formatFileSize(bytes) {
+      if (!bytes) return '0 B';
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
     // ==================== LOAD DATA ====================
     async function loadSharedProject() {
       const pathParts = window.location.pathname.split('/');
@@ -117,7 +141,7 @@
         }
 
         const data = await res.json();
-        const { project, tasks } = data;
+        const { project, tasks, files } = data;
         allTasks = tasks;
 
         document.title = `${project.name} - IT Task Tracker`;
@@ -170,6 +194,19 @@
 
         // Render tasks
         renderSharedTasks(tasks);
+
+        // Render files
+        if (files && files.length > 0) {
+          document.getElementById('shared-files-section').classList.remove('hidden');
+          document.getElementById('shared-files-list').innerHTML = files.map(f => `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem .7rem;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0">
+              <div style="display:flex;align-items:center;gap:.6rem">
+                <span style="font-size:1.3rem">${getFileIconShared(f.mimetype)}</span>
+                <div><a href="/api/files/${f.id}/download" style="color:#2563eb;text-decoration:none;font-weight:500;font-size:.88rem">${escapeHtml(f.filename)}</a>
+                <br><small style="color:#64748b">${formatFileSize(f.size)} &bull; ${formatDate(f.uploaded_at)}</small></div>
+              </div>
+            </div>`).join('');
+        }
 
         // Show content
         document.getElementById('loading').classList.add('hidden');

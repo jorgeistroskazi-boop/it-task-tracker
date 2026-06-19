@@ -51,9 +51,23 @@ async function initDb() {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS files (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      mimetype TEXT,
+      size INTEGER,
+      data TEXT NOT NULL,
+      uploaded_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
+
   db.run(`CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_projects_share_token ON projects(share_token)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_files_project_id ON files(project_id)`);
 
   persist();
   return db;

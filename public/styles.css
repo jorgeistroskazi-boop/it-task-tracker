@@ -486,9 +486,81 @@ body {
   color: var(--text-muted);
 }
 
+.empty-state-small {
+  text-align: center;
+  padding: 1rem;
+  color: var(--text-muted);
+}
+
 .empty-icon {
   font-size: 3rem;
   margin-bottom: 1rem;
+}
+
+/* ==================== DOCUMENTS/FILES ==================== */
+.documents-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.documents-section .section-header {
+  margin-bottom: 1rem;
+}
+
+.documents-section .section-header h3 {
+  font-size: 1.1rem;
+}
+
+.btn-upload {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.8rem;
+  background: var(--bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.file-icon {
+  font-size: 1.4rem;
+}
+
+.file-name {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.file-name:hover {
+  text-decoration: underline;
+}
+
+.file-info small {
+  display: block;
+  margin-top: 0.15rem;
 }
 
 /* ==================== SHARED VIEW ==================== */

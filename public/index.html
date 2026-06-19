@@ -93,6 +93,23 @@
         <button class="btn btn-primary" onclick="showCreateTask()">+ Nueva Tarea</button>
       </div>
 
+      <!-- Documents Section -->
+      <div class="documents-section">
+        <div class="section-header">
+          <h3>&#128196; Documentos del proyecto</h3>
+          <label class="btn btn-secondary btn-upload">
+            &#128206; Subir archivo
+            <input type="file" id="file-upload" onchange="uploadFile(event)" hidden multiple>
+          </label>
+        </div>
+        <div id="files-list" class="files-list">
+          <!-- Files rendered here -->
+        </div>
+        <div id="no-files" class="empty-state-small hidden">
+          <p class="text-muted">Sin documentos. Sube PDFs, imágenes o cualquier archivo relevante.</p>
+        </div>
+      </div>
+
       <!-- Create/Edit Task Form -->
       <div id="task-form-container" class="card form-card hidden">
         <h3 id="task-form-title">Nueva Tarea</h3>

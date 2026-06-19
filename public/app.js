@@ -59,6 +59,7 @@ function showProjectView(projectId) {
   $('project-view').classList.remove('hidden');
   loadProjectDetail();
   loadTasks();
+  loadFiles();
 }
 
 // ==================== PROJECTS ====================
@@ -334,6 +335,101 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// ==================== FILES ====================
+async function loadFiles() {
+  try {
+    const res = await fetch(`/api/projects/${currentProjectId}/files`);
+    const files = await res.json();
+
+    if (files.length === 0) {
+      $('files-list').innerHTML = '';
+      $('no-files').classList.remove('hidden');
+      return;
+    }
+
+    $('no-files').classList.add('hidden');
+    $('files-list').innerHTML = files.map(f => `
+      <div class="file-item">
+        <div class="file-info">
+          <span class="file-icon">${getFileIcon(f.mimetype)}</span>
+          <div>
+            <a href="/api/files/${f.id}/download" class="file-name" download="${escapeHtml(f.filename)}">${escapeHtml(f.filename)}</a>
+            <small class="text-muted">${formatFileSize(f.size)} &bull; ${formatDate(f.uploaded_at)}</small>
+          </div>
+        </div>
+        <button class="btn-icon" onclick="deleteFile('${f.id}')" title="Eliminar">&#128465;</button>
+      </div>
+    `).join('');
+  } catch (err) {
+    showToast('Error al cargar archivos', 'error');
+  }
+}
+
+async function uploadFile(event) {
+  const files = event.target.files;
+  if (!files.length) return;
+
+  for (const file of files) {
+    if (file.size > 10 * 1024 * 1024) {
+      showToast(`${file.name} es muy grande (max 10MB)`, 'error');
+      continue;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+      const base64 = e.target.result.split(',')[1];
+      try {
+        const res = await fetch(`/api/projects/${currentProjectId}/files`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: file.name,
+            mimetype: file.type,
+            data: base64
+          })
+        });
+        if (!res.ok) throw new Error('Error al subir');
+        showToast(`${file.name} subido`);
+        loadFiles();
+      } catch (err) {
+        showToast(`Error al subir ${file.name}`, 'error');
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+  event.target.value = '';
+}
+
+async function deleteFile(fileId) {
+  if (!confirm('¿Eliminar este archivo?')) return;
+  try {
+    await fetch(`/api/files/${fileId}`, { method: 'DELETE' });
+    showToast('Archivo eliminado');
+    loadFiles();
+  } catch (err) {
+    showToast('Error al eliminar archivo', 'error');
+  }
+}
+
+function getFileIcon(mimetype) {
+  if (!mimetype) return '&#128196;';
+  if (mimetype.includes('pdf')) return '&#128213;';
+  if (mimetype.includes('image')) return '&#128247;';
+  if (mimetype.includes('word') || mimetype.includes('document')) return '&#128196;';
+  if (mimetype.includes('sheet') || mimetype.includes('excel')) return '&#128202;';
+  if (mimetype.includes('presentation') || mimetype.includes('powerpoint')) return '&#128218;';
+  if (mimetype.includes('zip') || mimetype.includes('rar') || mimetype.includes('compress')) return '&#128230;';
+  if (mimetype.includes('text')) return '&#128221;';
+  return '&#128196;';
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return '0 B';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
 // ==================== INIT ====================
