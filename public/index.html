@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IT Task Tracker</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-content">
+        <h1 class="logo" onclick="showDashboard()">
+          <span class="logo-icon">&#9776;</span> IT Task Tracker
+        </h1>
+        <p class="header-subtitle">Seguimiento de tareas IT</p>
+      </div>
+    </header>
+
+    <!-- Dashboard View -->
+    <main id="dashboard-view" class="container">
+      <div class="section-header">
+        <h2>Mis Proyectos</h2>
+        <button class="btn btn-primary" onclick="showCreateProject()">+ Nuevo Proyecto</button>
+      </div>
+
+      <!-- Create Project Form -->
+      <div id="create-project-form" class="card form-card hidden">
+        <h3>Crear Proyecto</h3>
+        <form onsubmit="createProject(event)">
+          <div class="form-group">
+            <label for="project-name">Nombre del proyecto *</label>
+            <input type="text" id="project-name" placeholder="Ej: Migración de servidores" required>
+          </div>
+          <div class="form-group">
+            <label for="project-desc">Descripción</label>
+            <textarea id="project-desc" placeholder="Descripción breve del proyecto..." rows="3"></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Crear</button>
+            <button type="button" class="btn btn-secondary" onclick="hideCreateProject()">Cancelar</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Projects List -->
+      <div id="projects-list" class="projects-grid">
+        <!-- Projects rendered here -->
+      </div>
+      <div id="no-projects" class="empty-state hidden">
+        <p class="empty-icon">&#128203;</p>
+        <p>No tienes proyectos aún</p>
+        <p class="text-muted">Crea tu primer proyecto para empezar a dar seguimiento a tus tareas IT</p>
+      </div>
+    </main>
+
+    <!-- Project Detail View -->
+    <main id="project-view" class="container hidden">
+      <div class="breadcrumb">
+        <a href="#" onclick="showDashboard()">&#8592; Proyectos</a>
+      </div>
+
+      <div id="project-header" class="project-header">
+        <!-- Project info rendered here -->
+      </div>
+
+      <!-- Share Link -->
+      <div id="share-section" class="share-section">
+        <div class="share-label">&#128279; Link para compartir (solo lectura):</div>
+        <div class="share-link-container">
+          <input type="text" id="share-link" readonly class="share-input">
+          <button class="btn btn-small" onclick="copyShareLink()">Copiar</button>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters-bar">
+        <select id="filter-status" onchange="loadTasks()">
+          <option value="">Todos los estados</option>
+          <option value="pending">Pendiente</option>
+          <option value="in_progress">En progreso</option>
+          <option value="blocked">Bloqueada</option>
+          <option value="completed">Completada</option>
+        </select>
+        <select id="filter-priority" onchange="loadTasks()">
+          <option value="">Todas las prioridades</option>
+          <option value="critical">Crítica</option>
+          <option value="high">Alta</option>
+          <option value="medium">Media</option>
+          <option value="low">Baja</option>
+        </select>
+        <button class="btn btn-primary" onclick="showCreateTask()">+ Nueva Tarea</button>
+      </div>
+
+      <!-- Create/Edit Task Form -->
+      <div id="task-form-container" class="card form-card hidden">
+        <h3 id="task-form-title">Nueva Tarea</h3>
+        <form onsubmit="saveTask(event)">
+          <input type="hidden" id="task-id">
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="task-title">Título *</label>
+              <input type="text" id="task-title" placeholder="Ej: Configurar firewall" required>
+            </div>
+            <div class="form-group flex-1">
+              <label for="task-priority">Prioridad</label>
+              <select id="task-priority">
+                <option value="low">Baja</option>
+                <option value="medium" selected>Media</option>
+                <option value="high">Alta</option>
+                <option value="critical">Crítica</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="task-assigned">Asignado a</label>
+              <input type="text" id="task-assigned" placeholder="Nombre del responsable">
+            </div>
+            <div class="form-group flex-1">
+              <label for="task-status">Estado</label>
+              <select id="task-status">
+                <option value="pending">Pendiente</option>
+                <option value="in_progress">En progreso</option>
+                <option value="blocked">Bloqueada</option>
+                <option value="completed">Completada</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="task-description">Descripción</label>
+            <textarea id="task-description" placeholder="Detalles de la tarea..." rows="2"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="task-due-date">Fecha límite</label>
+              <input type="date" id="task-due-date">
+            </div>
+            <div class="form-group flex-2">
+              <label for="task-notes">Notas</label>
+              <input type="text" id="task-notes" placeholder="Notas adicionales...">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <button type="button" class="btn btn-secondary" onclick="hideTaskForm()">Cancelar</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tasks List -->
+      <div id="tasks-list" class="tasks-list">
+        <!-- Tasks rendered here -->
+      </div>
+      <div id="no-tasks" class="empty-state hidden">
+        <p class="empty-icon">&#9745;</p>
+        <p>Sin tareas en este proyecto</p>
+        <p class="text-muted">Agrega tareas para empezar el seguimiento</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

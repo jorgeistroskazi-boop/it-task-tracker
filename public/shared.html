@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proyecto Compartido - IT Task Tracker</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="shared-body">
+  <div id="app">
+    <!-- Header -->
+    <header class="header header-shared">
+      <div class="header-content">
+        <h1 class="logo">
+          <span class="logo-icon">&#9776;</span> IT Task Tracker
+        </h1>
+        <span class="badge badge-shared">Vista compartida</span>
+      </div>
+    </header>
+
+    <!-- Loading -->
+    <div id="loading" class="container">
+      <div class="loading-spinner">
+        <p>Cargando proyecto...</p>
+      </div>
+    </div>
+
+    <!-- Not Found -->
+    <div id="not-found" class="container hidden">
+      <div class="empty-state">
+        <p class="empty-icon">&#128683;</p>
+        <p>Proyecto no encontrado</p>
+        <p class="text-muted">El link que usaste no es válido o el proyecto fue eliminado</p>
+      </div>
+    </div>
+
+    <!-- Project Content -->
+    <main id="shared-content" class="container hidden">
+      <!-- Project Header -->
+      <div id="shared-project-header" class="project-header shared-project-header">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Progress Overview -->
+      <div id="shared-progress" class="card shared-progress-card">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Tasks -->
+      <div class="section-header">
+        <h3>Tareas del proyecto</h3>
+        <div class="shared-filters">
+          <select id="shared-filter-status" onchange="filterSharedTasks()">
+            <option value="">Todos los estados</option>
+            <option value="pending">Pendiente</option>
+            <option value="in_progress">En progreso</option>
+            <option value="blocked">Bloqueada</option>
+            <option value="completed">Completada</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="shared-tasks-list" class="tasks-list">
+        <!-- Tasks rendered here -->
+      </div>
+
+      <div id="shared-no-tasks" class="empty-state hidden">
+        <p class="empty-icon">&#9745;</p>
+        <p>No hay tareas registradas en este proyecto</p>
+      </div>
+
+      <!-- Footer -->
+      <footer class="shared-footer">
+        <p>Seguimiento con <strong>IT Task Tracker</strong> &mdash; Actualizado en tiempo real</p>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    // ==================== STATE ====================
+    let allTasks = [];
+
+    // ==================== UTILITIES ====================
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function statusLabel(status) {
+      const labels = { pending: 'Pendiente', in_progress: 'En progreso', blocked: 'Bloqueada', completed: 'Completada' };
+      return labels[status] || status;
+    }
+
+    function priorityLabel(priority) {
+      const labels = { low: 'Baja', medium: 'Media', high: 'Alta', critical: 'Crítica' };
+      return labels[priority] || priority;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ==================== LOAD DATA ====================
+    async function loadSharedProject() {
+      const pathParts = window.location.pathname.split('/');
+      const token = pathParts[pathParts.length - 1];
+
+      try {
+        const res = await fetch(`/api/shared/${token}`);
+        if (!res.ok) {
+          document.getElementById('loading').classList.add('hidden');
+          document.getElementById('not-found').classList.remove('hidden');
+          return;
+        }
+
+        const data = await res.json();
+        const { project, tasks } = data;
+        allTasks = tasks;
+
+        document.title = `${project.name} - IT Task Tracker`;
+
+        // Render project header
+        document.getElementById('shared-project-header').innerHTML = `
+          <h2>${escapeHtml(project.name)}</h2>
+          <p class="text-muted">${escapeHtml(project.description) || ''}</p>
+          <small class="text-muted">Creado: ${formatDate(project.created_at)}</small>
+        `;
+
+        // Render progress
+        const total = project.total_tasks || 0;
+        const completed = project.completed_tasks || 0;
+        const blocked = project.blocked_tasks || 0;
+        const inProgress = tasks.filter(t => t.status === 'in_progress').length;
+        const pending = tasks.filter(t => t.status === 'pending').length;
+        const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+        document.getElementById('shared-progress').innerHTML = `
+          <div class="progress-overview">
+            <div class="progress-bar progress-bar-large">
+              <div class="progress-fill" style="width: ${progress}%"></div>
+            </div>
+            <div class="progress-label">${progress}% completado</div>
+          </div>
+          <div class="stats-row">
+            <div class="stat-box">
+              <span class="stat-number">${total}</span>
+              <span class="stat-label">Total</span>
+            </div>
+            <div class="stat-box stat-completed">
+              <span class="stat-number">${completed}</span>
+              <span class="stat-label">Completadas</span>
+            </div>
+            <div class="stat-box stat-progress">
+              <span class="stat-number">${inProgress}</span>
+              <span class="stat-label">En progreso</span>
+            </div>
+            <div class="stat-box stat-pending">
+              <span class="stat-number">${pending}</span>
+              <span class="stat-label">Pendientes</span>
+            </div>
+            <div class="stat-box stat-blocked">
+              <span class="stat-number">${blocked}</span>
+              <span class="stat-label">Bloqueadas</span>
+            </div>
+          </div>
+        `;
+
+        // Render tasks
+        renderSharedTasks(tasks);
+
+        // Show content
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('shared-content').classList.remove('hidden');
+      } catch (err) {
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('not-found').classList.remove('hidden');
+      }
+    }
+
+    function filterSharedTasks() {
+      const status = document.getElementById('shared-filter-status').value;
+      const filtered = status ? allTasks.filter(t => t.status === status) : allTasks;
+      renderSharedTasks(filtered);
+    }
+
+    function renderSharedTasks(tasks) {
+      if (tasks.length === 0) {
+        document.getElementById('shared-tasks-list').innerHTML = '';
+        document.getElementById('shared-no-tasks').classList.remove('hidden');
+        return;
+      }
+
+      document.getElementById('shared-no-tasks').classList.add('hidden');
+      document.getElementById('shared-tasks-list').innerHTML = tasks.map(t => `
+        <div class="task-card card status-${t.status}">
+          <div class="task-header">
+            <div class="task-title-row">
+              <span class="priority-dot priority-${t.priority}" title="${priorityLabel(t.priority)}"></span>
+              <h4>${escapeHtml(t.title)}</h4>
+            </div>
+          </div>
+          ${t.description ? `<p class="task-desc">${escapeHtml(t.description)}</p>` : ''}
+          <div class="task-meta">
+            <span class="badge status-badge-${t.status}">${statusLabel(t.status)}</span>
+            <span class="badge priority-badge-${t.priority}">${priorityLabel(t.priority)}</span>
+            ${t.assigned_to ? `<span class="task-assigned">&#128100; ${escapeHtml(t.assigned_to)}</span>` : ''}
+            ${t.due_date ? `<span class="task-due">&#128197; ${formatDate(t.due_date)}</span>` : ''}
+          </div>
+          ${t.notes ? `<p class="task-notes">&#128221; ${escapeHtml(t.notes)}</p>` : ''}
+        </div>
+      `).join('');
+    }
+
+    // ==================== AUTO REFRESH ====================
+    // Refresh every 30 seconds for real-time updates
+    setInterval(loadSharedProject, 30000);
+
+    // ==================== INIT ====================
+    document.addEventListener('DOMContentLoaded', loadSharedProject);
+  </script>
+</body>
+</html>
