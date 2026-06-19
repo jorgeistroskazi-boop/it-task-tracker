@@ -60,6 +60,7 @@ function showProjectView(projectId) {
   loadProjectDetail();
   loadTasks();
   loadFiles();
+  renderCharts();
 }
 
 // ==================== PROJECTS ====================
@@ -312,6 +313,7 @@ async function saveTask(e) {
     showToast(taskId ? 'Tarea actualizada' : 'Tarea creada');
     loadTasks();
     loadProjectDetail();
+    renderCharts();
   } catch (err) {
     showToast('Error al guardar tarea', 'error');
   }
@@ -325,9 +327,100 @@ async function deleteTask(taskId) {
     showToast('Tarea eliminada');
     loadTasks();
     loadProjectDetail();
+    renderCharts();
   } catch (err) {
     showToast('Error al eliminar tarea', 'error');
   }
+}
+
+// ==================== CHARTS ====================
+let statusChart = null;
+let priorityChart = null;
+
+async function renderCharts() {
+  if (typeof Chart === 'undefined') return;
+
+  const res = await fetch(`/api/projects/${currentProjectId}/tasks`);
+  const tasks = await res.json();
+
+  if (tasks.length === 0) {
+    $('charts-section').classList.add('hidden');
+    return;
+  }
+
+  $('charts-section').classList.remove('hidden');
+
+  // Count by status
+  const statusCounts = { pending: 0, in_progress: 0, blocked: 0, completed: 0 };
+  tasks.forEach(t => { if (statusCounts[t.status] !== undefined) statusCounts[t.status]++; });
+
+  // Count by priority
+  const priorityCounts = { low: 0, medium: 0, high: 0, critical: 0 };
+  tasks.forEach(t => { if (priorityCounts[t.priority] !== undefined) priorityCounts[t.priority]++; });
+
+  // Destroy old charts
+  if (statusChart) { statusChart.destroy(); statusChart = null; }
+  if (priorityChart) { priorityChart.destroy(); priorityChart = null; }
+
+  // Status donut chart
+  const statusCtx = $('status-chart').getContext('2d');
+  statusChart = new Chart(statusCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Pendientes', 'En progreso', 'Bloqueadas', 'Completadas'],
+      datasets: [{
+        data: [statusCounts.pending, statusCounts.in_progress, statusCounts.blocked, statusCounts.completed],
+        backgroundColor: ['#999999', '#0066cc', '#c92a2a', '#1a8c4e'],
+        borderWidth: 0,
+        hoverOffset: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { font: { size: 11, family: '-apple-system, sans-serif' }, padding: 12, usePointStyle: true, pointStyle: 'circle' }
+        }
+      }
+    }
+  });
+
+  // Priority bar chart
+  const priorityCtx = $('priority-chart').getContext('2d');
+  priorityChart = new Chart(priorityCtx, {
+    type: 'bar',
+    data: {
+      labels: ['Baja', 'Media', 'Alta', 'Critica'],
+      datasets: [{
+        label: 'Tareas',
+        data: [priorityCounts.low, priorityCounts.medium, priorityCounts.high, priorityCounts.critical],
+        backgroundColor: ['#bbbbbb', '#d4850a', '#e85d04', '#c92a2a'],
+        borderWidth: 0,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { stepSize: 1, font: { size: 11 } },
+          grid: { color: '#f0f0f0' }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 11 } }
+        }
+      }
+    }
+  });
 }
 
 // ==================== HELPERS ====================

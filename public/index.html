@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IT Task Tracker</title>
   <link rel="stylesheet" href="/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div id="app">
@@ -12,9 +13,10 @@
     <header class="header">
       <div class="header-content">
         <h1 class="logo" onclick="showDashboard()">
-          <span class="logo-icon">&#9776;</span> IT Task Tracker
+          <img src="/adama-logo.svg" alt="ADAMA" class="logo-img" onerror="this.style.display='none'">
+          IT Task Tracker
         </h1>
-        <p class="header-subtitle">Seguimiento de tareas IT</p>
+        <p class="header-subtitle">Seguimiento de tareas IT - ADAMA</p>
       </div>
     </header>
 
@@ -71,6 +73,24 @@
         <div class="share-link-container">
           <input type="text" id="share-link" readonly class="share-input">
           <button class="btn btn-small" onclick="copyShareLink()">Copiar</button>
+        </div>
+      </div>
+
+      <!-- Charts Section -->
+      <div id="charts-section" class="charts-section hidden">
+        <div class="charts-grid">
+          <div class="chart-card card">
+            <h4 class="chart-title">Estado de tareas</h4>
+            <div class="chart-container">
+              <canvas id="status-chart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card card">
+            <h4 class="chart-title">Tareas por prioridad</h4>
+            <div class="chart-container">
+              <canvas id="priority-chart"></canvas>
+            </div>
+          </div>
         </div>
       </div>
 
